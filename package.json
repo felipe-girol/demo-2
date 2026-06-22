@@ -1,0 +1,16 @@
+{
+  "name": "curso-ia-astro-bookings",
+  "version": "1.4.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test tests/smoke.spec.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

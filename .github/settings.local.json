@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(cd:*)",
+      "Bash(nvm:*)",
+      "Bash(winget install:*)",
+      "Bash(chmod:*)",
+      "Bash(taskkill:*)",
+      "Edit",
+      "Write",
+      "Bash(pkill:*)",
+      "Bash(git push:*)",
+      "Bash(where gh:*)",
+      "Bash(git remote:*)",
+      "mcp__github__list_issues",
+      "mcp__github__create_issue",
+      "mcp__github__get_issue",
+      "mcp__github__create_pull_request",
+      "Bash(git add:*)",
+      "mcp__github__update_issue",
+      "mcp__github__list_pull_requests",
+      "mcp__github__merge_pull_request",
+      "mcp__github__add_issue_comment",
+      "Bash(git:*)",
+      "Bash(npx playwright:*)",
+      "Skill(commit)"
+    ]
+  }
+}
