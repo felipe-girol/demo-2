@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0] - 2026-06-27
+
+### Added
+- Booking billing via mock payment gateway (FR8): `POST /api/bookings` now charges `seats * launch.pricePerSeat` through the new `utils/payment-gateway.ts` adapter at creation time
+- Deterministic `charge(amount)` adapter returning a discriminated `PaymentResult` (`paid` with a gateway reference, or `failed` with a reason), logging each attempt and outcome
+- `paymentReference` attribute on the `Booking` entity, returned by `GET /api/bookings` and `GET /api/bookings/:id`
+- `sendPaymentRequired` (402) sender on the shared error handler for declined charges
+- Vitest unit tests for the payment gateway and the billed/declined service branches; Playwright E2E coverage of the billed happy path
+
+### Changed
+- Booking creation charges only after launch, customer, and seat-availability checks pass; successful bookings persist with `paymentStatus = "paid"` and the gateway reference
+- Declined charges (`402 Payment Required`) no longer persist the booking, leaving derived seat availability unaffected
+
+### Removed
+- `DEFAULT_PAYMENT_STATUS` (`"pending"`) FR7 placeholder; `paymentStatus` is now set from the gateway outcome
+
 ## [1.4.0] - 2026-06-15
 
 ### Added

@@ -42,7 +42,8 @@
 - **customerId**: string (foreign key → Customer.id)
 - **seats**: integer (<= remaining available seats on the launch)
 - **totalPrice**: number (seats * launch.pricePerSeat)
-- **paymentStatus**: enum (mock payment result)
+- **paymentStatus**: enum (mock payment result; persisted bookings are always `paid`, declined charges are not persisted)
+- **paymentReference**: string (gateway transaction reference)
 - **createdAt**: string (ISO timestamp)
 
 - A booking links one customer to one launch.
@@ -83,6 +84,7 @@ erDiagram
         int seats
         number totalPrice
         string paymentStatus
+        string paymentReference
         string createdAt
     }
 ```

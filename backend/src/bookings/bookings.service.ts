@@ -1,8 +1,9 @@
-import { type Booking, type CreateBookingDto, DEFAULT_PAYMENT_STATUS } from "../types/bookings.type.js";
+import { type Booking, type CreateBookingDto } from "../types/bookings.type.js";
 import type { Launch } from "../types/launches.type.js";
 import * as customersRepository from "../customers/customers.repository.js";
 import * as launchesRepository from "../launches/launches.repository.js";
 import { logInfo } from "../utils/logger.js";
+import { charge } from "../utils/payment-gateway.js";
 import * as repository from "./bookings.repository.js";
 
 const CONTEXT = "Bookings";
@@ -10,7 +11,8 @@ const CONTEXT = "Bookings";
 export type CreateBookingResult =
   | { status: "ok"; booking: Booking }
   | { status: "not-found"; message: string }
-  | { status: "conflict"; message: string };
+  | { status: "conflict"; message: string }
+  | { status: "payment-failed"; message: string };
 
 /**
  * Derived seat availability (single source of truth): the launch's seatsOffered
@@ -38,10 +40,17 @@ export function createBooking(dto: CreateBookingDto): CreateBookingResult {
     };
   }
 
+  const totalPrice = dto.seats * launch.pricePerSeat;
+  const payment = charge(totalPrice);
+  if (payment.outcome === "failed") {
+    return { status: "payment-failed", message: payment.reason };
+  }
+
   const booking = repository.create({
     ...dto,
-    totalPrice: dto.seats * launch.pricePerSeat,
-    paymentStatus: DEFAULT_PAYMENT_STATUS,
+    totalPrice,
+    paymentStatus: "paid",
+    paymentReference: payment.reference,
     createdAt: new Date().toISOString(),
   });
   logInfo(CONTEXT, `Created booking ${booking.id} for launch ${booking.launchId}`);

@@ -90,7 +90,7 @@ cd backend && npm run test:dev   # watch mode
 - `GET|POST /api/rockets`, `GET|PUT|DELETE /api/rockets/:id`
 - `GET|POST /api/launches`, `GET|PUT|DELETE /api/launches/:id`
 - `GET|POST /api/customers`, `GET /api/customers/:id`
-- `GET|POST /api/bookings`, `GET /api/bookings/:id` (implemented; billing via FR8 pending)
+- `GET|POST /api/bookings`, `GET /api/bookings/:id` (billing via mock gateway on create, FR8)
 
 ### Logging
 - Format: `[TIMESTAMP] [LEVEL] [CONTEXT] message`

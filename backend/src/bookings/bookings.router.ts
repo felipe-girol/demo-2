@@ -3,7 +3,12 @@ import type { CreateBookingDto } from "../types/bookings.type.js";
 import * as repository from "./bookings.repository.js";
 import { createBooking } from "./bookings.service.js";
 import { validateCreateBooking } from "./bookings.validation.js";
-import { sendConflict, sendNotFound, sendValidationErrors } from "../utils/error-handler.js";
+import {
+  sendConflict,
+  sendNotFound,
+  sendPaymentRequired,
+  sendValidationErrors,
+} from "../utils/error-handler.js";
 
 const BOOKING_NOT_FOUND = "Booking not found";
 
@@ -42,6 +47,10 @@ bookingsRouter.post("/", (req, res) => {
   }
   if (result.status === "conflict") {
     sendConflict(res, result.message);
+    return;
+  }
+  if (result.status === "payment-failed") {
+    sendPaymentRequired(res, result.message);
     return;
   }
   res.status(201).json(result.booking);

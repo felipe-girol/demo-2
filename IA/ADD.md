@@ -130,7 +130,7 @@ Rocket 1───* Launch *───* Booking *───1 Customer
 - **Rocket** — `{ id, name, range, capacity }`. `range ∈ {suborbital, orbital, moon, mars}`, `capacity ∈ [1,10]`. (Implemented.)
 - **Launch** — `{ id, rocketId, mission, date, pricePerSeat, minPassengers, seatsOffered }`. Bound to an existing rocket; `seatsOffered ≤ rocket.capacity`, `minPassengers ≤ seatsOffered`, future `date`, non-empty `mission`, positive `pricePerSeat`. (Implemented.)
 - **Customer** — `{ id, email, name, phone }`. Identified/looked up by unique `email`.
-- **Booking** — `{ id, launchId, customerId, seats, totalPrice, paymentStatus, createdAt }`. `seats ≤` remaining available seats on the launch.
+- **Booking** — `{ id, launchId, customerId, seats, totalPrice, paymentStatus, paymentReference, createdAt }`. `seats ≤` remaining available seats on the launch; persisted bookings are always `paid` (declined charges are not stored).
 
 Seat availability is **derived** (launch `seatsOffered` minus sum of confirmed booking `seats`) rather than stored, keeping a single source of truth.
 
@@ -139,7 +139,7 @@ Seat availability is **derived** (launch `seatsOffered` minus sum of confirmed b
 - **Validation** (`utils/validation.ts` pattern): per-field `FieldValidator` functions composed into `validateCreate`/`validateUpdate` returning `string[]`. Each feature adds its own validators (e.g. `validation` for launches/bookings) reusing this composition pattern.
 - **Error handling** (`utils/error-handler.ts`): centralized `sendNotFound`, `sendValidationErrors`; extend with `sendConflict` (409) for capacity/email conflicts and `sendBadRequest` as needed. Routers wrap async work in try/catch and emit structured errors.
 - **Logging** (`utils/logger.ts`): `[TIMESTAMP] [LEVEL] [CONTEXT] message`, levels `debug<info<warn<error`, gated by `LOG_LEVEL` (default `info`). `requestLogger` logs every request and its completion.
-- **Payment gateway** (`utils/payment-gateway.ts`, new): adapter exposing `charge(amount): PaymentResult` to decouple billing from a real provider (mock returns success).
+- **Payment gateway** (`utils/payment-gateway.ts`): adapter exposing `charge(amount): PaymentResult` to decouple billing from a real provider. The deterministic mock returns `{ outcome: "paid", reference }` for a positive amount and `{ outcome: "failed", reason }` otherwise; each attempt logs the amount and outcome.
 
 ### Data Flow
 
@@ -247,10 +247,10 @@ API surface (target):
 - **Consequences**: Always consistent; O(n) over a launch's bookings per check — negligible at demo scale. Single-process model avoids concurrency races.
 
 ### ADR 4: Mock payment gateway via adapter
-- **Decision**: Encapsulate billing behind a `payment-gateway` adapter exposing `charge(amount)`; the implementation is a deterministic mock.
+- **Decision**: Encapsulate billing behind a `payment-gateway` adapter exposing `charge(amount): PaymentResult` (discriminated union); the implementation is a deterministic mock. The booking service charges only after launch/customer/availability checks pass: a `paid` outcome persists the booking with `paymentStatus = paid` and the gateway reference; a `failed` outcome persists nothing and maps to `402 Payment Required`.
 - **Status**: Accepted
 - **Context**: PRD requires billing on booking but excludes real payment integration; project rules recommend the adapter pattern to decouple external systems.
-- **Consequences**: Booking logic is provider-agnostic; swapping in a real gateway later requires changing only the adapter.
+- **Consequences**: Booking logic is provider-agnostic; swapping in a real gateway later requires changing only the adapter. Declined charges never reserve seats, keeping derived availability consistent.
 
 ### ADR 5: Customer identity by email
 - **Decision**: Treat `email` as the natural unique key for customers; resolve-or-create on booking.

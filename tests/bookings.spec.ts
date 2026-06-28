@@ -69,9 +69,9 @@ async function seedBookingContext(
 }
 
 test.describe("Bookings API - POST creation", () => {
-  // AC: WHEN a valid POST is sent, THE API SHALL create a booking and return it with a
-  // unique id, computed totalPrice, createdAt, paymentStatus, and status 201.
-  test("POST valid booking returns 201 with id, totalPrice, createdAt and paymentStatus", async ({ request }) => {
+  // AC: WHEN a valid POST is sent, THE API SHALL bill the booking and return it with a
+  // unique id, computed totalPrice, createdAt, paid paymentStatus, a paymentReference, and status 201.
+  test("POST valid booking returns 201 with id, totalPrice, createdAt, paid status and paymentReference", async ({ request }) => {
     const { launchId, customerId, pricePerSeat } = await seedBookingContext(request);
 
     const response = await request.post(BOOKINGS_URL, {
@@ -86,7 +86,9 @@ test.describe("Bookings API - POST creation", () => {
     expect(body.customerId).toBe(customerId);
     expect(body.seats).toBe(3);
     expect(body.totalPrice).toBe(3 * pricePerSeat);
-    expect(body.paymentStatus).toBe("pending");
+    expect(body.paymentStatus).toBe("paid");
+    expect(typeof body.paymentReference).toBe("string");
+    expect(body.paymentReference.length).toBeGreaterThan(0);
     expect(typeof body.createdAt).toBe("string");
     expect(Number.isNaN(Date.parse(body.createdAt))).toBe(false);
   });
@@ -297,6 +299,7 @@ test.describe("Bookings API - Retrieval", () => {
     expect(body.launchId).toBe(launchId);
     expect(body.customerId).toBe(customerId);
     expect(body.seats).toBe(2);
+    expect(body.paymentStatus).toBe("paid");
   });
 
   // AC: IF a GET is sent with a non-existent booking id, THEN respond with 404.

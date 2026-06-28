@@ -8,7 +8,8 @@ function buildBooking(launchId = "launch-1"): Omit<Booking, "id"> {
     customerId: "customer-1",
     seats: 2,
     totalPrice: 2000,
-    paymentStatus: "pending",
+    paymentStatus: "paid",
+    paymentReference: "pay-ref-1",
     createdAt: "2026-06-15T00:00:00.000Z",
   };
 }

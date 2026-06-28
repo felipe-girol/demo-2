@@ -1,9 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as customersRepository from "../customers/customers.repository.js";
 import * as launchesRepository from "../launches/launches.repository.js";
 import type { Launch } from "../types/launches.type.js";
 import type { Customer } from "../types/customers.type.js";
+import { charge } from "../utils/payment-gateway.js";
+import * as bookingsRepository from "./bookings.repository.js";
 import { createBooking, getRemainingSeats } from "./bookings.service.js";
+
+// Wrap the real gateway so individual tests can override the outcome via mockReturnValueOnce.
+vi.mock("../utils/payment-gateway.js", async (importActual) => {
+  const actual = await importActual<typeof import("../utils/payment-gateway.js")>();
+  return { charge: vi.fn(actual.charge) };
+});
 
 let customerSeq = 0;
 
@@ -28,7 +36,7 @@ function seedCustomer(): Customer {
 }
 
 describe("bookings.service createBooking", () => {
-  it("creates a booking and computes totalPrice and paymentStatus", () => {
+  it("creates a booking with paid status, totalPrice and a payment reference", () => {
     const launch = seedLaunch(10, 1500);
     const customer = seedCustomer();
 
@@ -38,7 +46,9 @@ describe("bookings.service createBooking", () => {
     if (result.status === "ok") {
       expect(result.booking.id).toBeTypeOf("string");
       expect(result.booking.totalPrice).toBe(4500);
-      expect(result.booking.paymentStatus).toBe("pending");
+      expect(result.booking.paymentStatus).toBe("paid");
+      expect(result.booking.paymentReference).toBeTypeOf("string");
+      expect(result.booking.paymentReference.length).toBeGreaterThan(0);
       expect(result.booking.createdAt).toBeTypeOf("string");
     }
   });
@@ -78,6 +88,59 @@ describe("bookings.service createBooking", () => {
     const result = createBooking({ launchId: launch.id, customerId: customer.id, seats: 3 });
 
     expect(result.status).toBe("conflict");
+  });
+
+  it("does not attempt the charge when the launch does not exist", () => {
+    const customer = seedCustomer();
+    vi.mocked(charge).mockClear();
+
+    const result = createBooking({ launchId: "missing-launch", customerId: customer.id, seats: 1 });
+
+    expect(result.status).toBe("not-found");
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  it("does not attempt the charge when the customer does not exist", () => {
+    const launch = seedLaunch();
+    vi.mocked(charge).mockClear();
+
+    const result = createBooking({ launchId: launch.id, customerId: "missing-customer", seats: 1 });
+
+    expect(result.status).toBe("not-found");
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  it("does not attempt the charge when seats exceed availability", () => {
+    const launch = seedLaunch(2);
+    const customer = seedCustomer();
+    vi.mocked(charge).mockClear();
+
+    const result = createBooking({ launchId: launch.id, customerId: customer.id, seats: 5 });
+
+    expect(result.status).toBe("conflict");
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  it("charges the launch price multiplied by seats only after checks pass", () => {
+    const launch = seedLaunch(10, 1200);
+    const customer = seedCustomer();
+    vi.mocked(charge).mockClear();
+
+    createBooking({ launchId: launch.id, customerId: customer.id, seats: 4 });
+
+    expect(charge).toHaveBeenCalledWith(4800);
+  });
+
+  it("does not persist the booking when the gateway declines the charge", () => {
+    const launch = seedLaunch(10, 1000);
+    const customer = seedCustomer();
+    vi.mocked(charge).mockReturnValueOnce({ outcome: "failed", reason: "card declined" });
+
+    const result = createBooking({ launchId: launch.id, customerId: customer.id, seats: 2 });
+
+    expect(result.status).toBe("payment-failed");
+    if (result.status === "payment-failed") expect(result.message).toBe("card declined");
+    expect(bookingsRepository.findByLaunch(launch.id)).toHaveLength(0);
   });
 });
 

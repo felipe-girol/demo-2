@@ -69,10 +69,30 @@ Out of scope:
 ### FR8 Billing via mock payment gateway
 - **Description**: Bill customers upon booking by processing payment through a mock gateway.
 - **Priority**: Medium
+- **Status**: Implemented
+
+### FR9 Frontend application shell and API integration
+- **Description**: Provide the Vue 3 + Vite application foundation: client-side routing, a shared layout with navigation between the agency and customer areas, a typed API client targeting `/api`, a service health indicator sourced from `GET /api/health`, and consistent loading, empty, and error states reused across screens.
+- **Priority**: Low
 - **Status**: NotStarted
 
-### FR9 Customer-facing frontend
-- **Description**: Provide a Vue 3 frontend for browsing launches and managing bookings.
+### FR10 Rocket management UI
+- **Description**: Provide agency screens to list, create, edit, and delete rockets via `/api/rockets`, surfacing name, range, and capacity validation feedback (builds on FR1, FR2).
+- **Priority**: Low
+- **Status**: NotStarted
+
+### FR11 Launch management UI
+- **Description**: Provide agency screens to list, create, edit, and delete launches via `/api/launches`, including rocket selection and validation feedback for mission, date, price per seat, minimum passengers, and seats offered (builds on FR4, FR5).
+- **Priority**: Low
+- **Status**: NotStarted
+
+### FR12 Launch catalog and availability browsing
+- **Description**: Provide a customer-facing catalog that lists launches from `/api/launches` with mission, date, price per seat, and derived remaining seat availability, plus a launch detail view (builds on FR7 availability).
+- **Priority**: Low
+- **Status**: NotStarted
+
+### FR13 Customer booking flow
+- **Description**: Provide a customer flow to register or identify a customer by email via `/api/customers` and book one or more seats on a launch via `/api/bookings`, showing the billing outcome and a booking confirmation (builds on FR6, FR7, FR8).
 - **Priority**: Low
 - **Status**: NotStarted
 

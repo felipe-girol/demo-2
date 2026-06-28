@@ -1,8 +1,5 @@
 export type PaymentStatus = "pending" | "paid" | "failed";
 
-/** Default payment state for a freshly created, unbilled booking (billing is FR8). */
-export const DEFAULT_PAYMENT_STATUS: PaymentStatus = "pending";
-
 export type Booking = {
   id: string;
   launchId: string;
@@ -10,6 +7,7 @@ export type Booking = {
   seats: number;
   totalPrice: number;
   paymentStatus: PaymentStatus;
+  paymentReference: string;
   createdAt: string;
 };
 

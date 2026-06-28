@@ -51,6 +51,9 @@ Read the plan and understand the tasks to complete. Then, implement the tasks in
 
 Apply relevant coding skills based on the technology stack specified in the requirements.
 
+ - `coding-vue-frontend`: Best practices for writing code with the Vue framework
+ - `styling-coreui`: Style the Vue frontend with the CoreUI component library and utilities.
+ - `designing-ux`: Apply UX judgment to user-facing flows: handle loading/empty/error/success states, accessibility, error recovery, and clear microcopy before a component is done.
  - `coding-typescript`: Best practices for clean and maintainable code in Typescript.
  - `coding-express-api`: Write API endpoints with Express following layered architecture patterns and best practices.
  - `testing-unit-vitest`: Write and maintains unit tests using Vitest. to be used for testing business login in services and utilities.

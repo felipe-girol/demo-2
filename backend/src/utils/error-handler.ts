@@ -15,3 +15,8 @@ export function sendConflict(res: Response, message: string): void {
   logError("ErrorHandler", `409: ${message}`);
   res.status(409).json({ error: message });
 }
+
+export function sendPaymentRequired(res: Response, message: string): void {
+  logError("ErrorHandler", `402: ${message}`);
+  res.status(402).json({ error: message });
+}
