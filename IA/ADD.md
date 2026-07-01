@@ -205,11 +205,23 @@ Client POST /api/bookings { launchId, customerEmail, seats }
 │           ├── bookings.repository.ts
 │           ├── bookings.service.ts
 │           └── bookings.router.ts
-└── frontend/                  # Vue 3 + Vite SPA
+└── frontend/                  # Vue 3 + Vite SPA (app shell FR9 + rocket UI FR10 + launch UI FR11 + launch catalog FR12)
+    ├── .env                   # VITE_API_BASE_URL (default /api)
+    ├── vite.config.ts         # dev proxy /api -> http://localhost:3000
     └── src/
-        ├── main.ts
-        ├── App.vue
-        └── components/
+        ├── main.ts            # bootstrap + router registration
+        ├── App.vue            # <AppLayout> + <RouterView>
+        ├── router/index.ts    # routes + catch-all; /agency/rockets, /agency/launches, /customer/launches(/:id) lazy-loaded
+        ├── types/             # api.type.ts, health.type.ts, rocket.type.ts, launch.type.ts (incl. LaunchView)
+        ├── services/          # api-client.ts, rockets-api.ts, launches-api.ts (list/getLaunch -> LaunchView)
+        ├── validation/        # rocket-form.ts, launch-form.ts (pure validators)
+        ├── utils/launch-format.ts    # date/price formatting + sold-out helpers
+        ├── composables/use-async.ts  # loading/error/data + retry
+        ├── components/        # AppLayout, AppNav, HealthIndicator, LoadingState,
+        │                      #   EmptyState, ErrorState, ConfirmDialog,
+        │                      #   RocketForm, RocketList, LaunchForm, LaunchList, LaunchCatalogList
+        └── views/             # HomeView, AgencyView, CustomerView, NotFoundView,
+                               #   RocketsView, LaunchesView, LaunchCatalogView, LaunchDetailView
 ```
 
 API surface (target):
@@ -219,8 +231,8 @@ API surface (target):
 | GET | `/api/health` | Health check | Implemented |
 | GET/POST | `/api/rockets` | List/create rockets | Implemented |
 | GET/PUT/DELETE | `/api/rockets/:id` | Read/update/delete rocket | Implemented |
-| GET/POST | `/api/launches` | List/create launches | Implemented |
-| GET/PUT/DELETE | `/api/launches/:id` | Read/update/delete launch | Implemented |
+| GET/POST | `/api/launches` | List/create launches (reads include derived `seatsAvailable`) | Implemented |
+| GET/PUT/DELETE | `/api/launches/:id` | Read/update/delete launch (read includes derived `seatsAvailable`) | Implemented |
 | GET/POST | `/api/customers` | List/create customers | Implemented |
 | GET | `/api/customers/:id` | Read customer | Implemented |
 | GET/POST | `/api/bookings` | List/create bookings (`?launchId=` filter) | Implemented |
@@ -241,10 +253,10 @@ API surface (target):
 - **Consequences**: Zero setup, fast tests, simple repositories. Data is lost on restart and cannot be shared across processes; repository interface is kept narrow so a future DB adapter could replace it without touching routers/services.
 
 ### ADR 3: Derived seat availability
-- **Decision**: Compute remaining seats from `launch.seatsOffered` minus the sum of booking seats, rather than persisting a mutable counter.
+- **Decision**: Compute remaining seats from `launch.seatsOffered` minus the sum of booking seats, rather than persisting a mutable counter. Launch read responses (`GET /api/launches`, `GET /api/launches/:id`) expose this as a derived, read-only `seatsAvailable` field via `withAvailability(launch)` (reusing `getRemainingSeats`), so the customer catalog (FR12) never recomputes availability client-side; the field is never stored nor accepted on create/update.
 - **Status**: Accepted
-- **Context**: Avoids dual-write inconsistency between bookings and a counter.
-- **Consequences**: Always consistent; O(n) over a launch's bookings per check — negligible at demo scale. Single-process model avoids concurrency races.
+- **Context**: Avoids dual-write inconsistency between bookings and a counter; keeps the API the single source of truth for availability that the frontend only mirrors.
+- **Consequences**: Always consistent; O(n) over a launch's bookings per check — negligible at demo scale. Single-process model avoids concurrency races. Read DTOs (`LaunchView`) carry `seatsAvailable` while write DTOs stay unchanged.
 
 ### ADR 4: Mock payment gateway via adapter
 - **Decision**: Encapsulate billing behind a `payment-gateway` adapter exposing `charge(amount): PaymentResult` (discriminated union); the implementation is a deterministic mock. The booking service charges only after launch/customer/availability checks pass: a `paid` outcome persists the booking with `paymentStatus = paid` and the gateway reference; a `failed` outcome persists nothing and maps to `402 Payment Required`.
@@ -269,3 +281,9 @@ API surface (target):
 - **Status**: Accepted
 - **Context**: The backend had no unit tests — only Playwright suites that require a live server, making pure-logic checks slow to run. Vitest is ESM-native, runs TypeScript via esbuild with no extra config under the existing `tsx`/NodeNext setup, and offers a Jest-compatible API.
 - **Consequences**: Repositories, validators, utils, and services gain quick feedback via `npm run test:dev` (watch) / `npm run test` (CI) from `backend/`. Two layers of testing must be maintained, but each covers a distinct concern (unit logic vs. end-to-end behavior). NodeNext `.js` import extensions remain valid in test files.
+
+### ADR 8: Frontend application shell — routing, single typed API client, shared async states
+- **Decision**: Build the Vue SPA on `vue-router` (v4, HTML5 history) with one shared `AppLayout` wrapping all routes (including the catch-all not-found). Centralize all HTTP access in a single typed `services/api-client.ts` on the `/api` base that returns a discriminated `ApiResult<T>` (`{ ok: true; data } | { ok: false; error }`) instead of throwing, and standardize loading/empty/error UX via a `use-async` composable plus `LoadingState`/`EmptyState`/`ErrorState` components.
+- **Status**: Accepted
+- **Context**: The frontend was the default Vite `HelloWorld` scaffold. Every later stage (FR10–FR13: rockets, launches, catalog, bookings UIs) needs the same foundation — navigation, data fetching, and feedback states. Without a shared shell each stage would re-invent these, producing inconsistent UX and duplicated code.
+- **Consequences**: Feature screens compose the shared client and state primitives, satisfying the loading/error-with-retry/empty criteria once. The client targets the relative `/api` base (spec-mandated) resolved via a Vite dev proxy to `http://localhost:3000`, so dev needs no CORS and prod can serve the SPA behind the same origin. The API stays the single source of truth — frontend types only mirror DTOs and no business rules are duplicated. A fetch `AbortController` timeout guarantees the health indicator's unreachable state on a hung backend. CoreUI styling and a global store (Pinia) are deferred until a feature stage needs them.

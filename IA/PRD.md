@@ -74,22 +74,24 @@ Out of scope:
 ### FR9 Frontend application shell and API integration
 - **Description**: Provide the Vue 3 + Vite application foundation: client-side routing, a shared layout with navigation between the agency and customer areas, a typed API client targeting `/api`, a service health indicator sourced from `GET /api/health`, and consistent loading, empty, and error states reused across screens.
 - **Priority**: Low
-- **Status**: NotStarted
+- **Status**: Implemented
 
 ### FR10 Rocket management UI
 - **Description**: Provide agency screens to list, create, edit, and delete rockets via `/api/rockets`, surfacing name, range, and capacity validation feedback (builds on FR1, FR2).
 - **Priority**: Low
-- **Status**: NotStarted
+- **Status**: Implemented
 
 ### FR11 Launch management UI
 - **Description**: Provide agency screens to list, create, edit, and delete launches via `/api/launches`, including rocket selection and validation feedback for mission, date, price per seat, minimum passengers, and seats offered (builds on FR4, FR5).
 - **Priority**: Low
-- **Status**: NotStarted
+- **Status**: Implemented
 
 ### FR12 Launch catalog and availability browsing
-- **Description**: Provide a customer-facing catalog that lists launches from `/api/launches` with mission, date, price per seat, and derived remaining seat availability, plus a launch detail view (builds on FR7 availability).
+- **Description**: Provide a customer-facing catalog that lists launches from `/api/launches` with mission, date, price per seat, and remaining seat availability, plus a launch detail view, with a sold-out indication when no seats remain. Launch read responses expose a derived read-only `seatsAvailable` field (seats offered minus seats booked) so availability is not recomputed in the frontend (builds on FR4, FR7 availability).
 - **Priority**: Low
-- **Status**: NotStarted
+- **Status**: Implemented
+- **Plan**: [feat-launch-catalog-browsing](./plans/feat-launch-catalog-browsing.plan.md)
+- **Spec**: [feat-launch-catalog-browsing](./specs/feat-launch-catalog-browsing.spec.md)
 
 ### FR13 Customer booking flow
 - **Description**: Provide a customer flow to register or identify a customer by email via `/api/customers` and book one or more seats on a launch via `/api/bookings`, showing the billing outcome and a booking confirmation (builds on FR6, FR7, FR8).

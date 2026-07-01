@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { CreateLaunchDto, UpdateLaunchDto } from "../types/launches.type.js";
 import * as repository from "./launches.repository.js";
-import { createLaunch, updateLaunch } from "./launches.service.js";
+import { createLaunch, updateLaunch, withAvailability } from "./launches.service.js";
 import { validateCreateLaunch, validateUpdateLaunch } from "./launches.validation.js";
 import { sendNotFound, sendValidationErrors } from "../utils/error-handler.js";
 import { logInfo } from "../utils/logger.js";
@@ -11,7 +11,7 @@ const LAUNCH_NOT_FOUND = "Launch not found";
 export const launchesRouter = Router();
 
 launchesRouter.get("/", (_req, res) => {
-  res.json(repository.findAll());
+  res.json(repository.findAll().map(withAvailability));
 });
 
 launchesRouter.get("/:id", (req, res) => {
@@ -20,7 +20,7 @@ launchesRouter.get("/:id", (req, res) => {
     sendNotFound(res, LAUNCH_NOT_FOUND);
     return;
   }
-  res.json(launch);
+  res.json(withAvailability(launch));
 });
 
 launchesRouter.post("/", (req, res) => {

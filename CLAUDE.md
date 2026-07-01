@@ -46,9 +46,13 @@ npm run test:smoke
 # Run backend unit tests (Vitest)
 cd backend && npm run test       # single run (CI-friendly)
 cd backend && npm run test:dev   # watch mode
+
+# Run frontend unit tests (Vitest)
+cd frontend && npm run test      # single run (CI-friendly)
+cd frontend && npm run test:dev  # watch mode
 ```
 
-> Unit tests live in `backend/src/**/*.test.ts`, colocated next to the code they cover.
+> Unit tests live in `backend/src/**/*.test.ts` and `frontend/src/**/*.test.ts`, colocated next to the code they cover.
 
 ### Architecture
 - Functional layered modules; no classes. Favor composition.
@@ -81,14 +85,32 @@ cd backend && npm run test:dev   # watch mode
 │       ├── launches/          # repository + service + validation + router
 │       ├── customers/         # repository + router
 │       └── bookings/          # repository + service + validation + router
-└── frontend/                  # Vue 3 + Vite app
-    └── src/                   # main.ts, App.vue, components/
+└── frontend/                  # Vue 3 + Vite SPA (app shell FR9 + rocket management UI FR10 + launch management UI FR11 + launch catalog browsing FR12)
+    ├── .env                   # VITE_API_BASE_URL (default /api)
+    ├── vite.config.ts         # dev proxy /api -> http://localhost:3000
+    └── src/
+        ├── main.ts            # bootstrap + router registration
+        ├── App.vue            # <AppLayout> + <RouterView>
+        ├── router/index.ts    # routes + catch-all (not-found); /agency/rockets, /agency/launches, /customer/launches(/:id) lazy-loaded
+        ├── types/             # api.type.ts, health.type.ts, rocket.type.ts, launch.type.ts (incl. LaunchView w/ seatsAvailable; mirror backend DTOs)
+        ├── services/          # api-client.ts (typed request<T>() + getHealth()), rockets-api.ts, launches-api.ts (list/getLaunch return LaunchView)
+        ├── validation/        # rocket-form.ts, launch-form.ts (pure validators mirroring backend rules)
+        ├── utils/             # launch-format.ts (date/price formatting + sold-out helpers)
+        ├── composables/       # use-async.ts (loading/error/data + retry)
+        ├── components/        # AppLayout, AppNav, HealthIndicator, Loading/Empty/ErrorState, RocketForm, RocketList, LaunchForm, LaunchList, LaunchCatalogList, ConfirmDialog
+        └── views/             # HomeView, AgencyView, CustomerView, NotFoundView, RocketsView, LaunchesView, LaunchCatalogView, LaunchDetailView
 ```
+
+### Frontend conventions
+- Vue 3 SFCs use `<script setup lang="ts">` only (see `coding-vue-frontend`).
+- All HTTP access goes through the single typed `services/api-client.ts` on the `/api` base; it returns a discriminated `ApiResult<T>` (`{ ok, data } | { ok, error }`) — callers never see raw throws.
+- Drive loading/empty/error UI via the shared `use-async` composable and the `LoadingState`/`EmptyState`/`ErrorState` components; do not re-implement these per screen.
+- Frontend types mirror backend DTOs but the API stays the single source of truth; no business rules are duplicated in the frontend.
 
 ### API Endpoints
 - `GET /api/health` - Health check
 - `GET|POST /api/rockets`, `GET|PUT|DELETE /api/rockets/:id`
-- `GET|POST /api/launches`, `GET|PUT|DELETE /api/launches/:id`
+- `GET|POST /api/launches`, `GET|PUT|DELETE /api/launches/:id` (launch reads include derived read-only `seatsAvailable`, FR12)
 - `GET|POST /api/customers`, `GET /api/customers/:id`
 - `GET|POST /api/bookings`, `GET /api/bookings/:id` (billing via mock gateway on create, FR8)
 

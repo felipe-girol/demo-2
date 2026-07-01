@@ -1,4 +1,5 @@
-import type { CreateLaunchDto, Launch, UpdateLaunchDto } from "../types/launches.type.js";
+import type { CreateLaunchDto, Launch, LaunchView, UpdateLaunchDto } from "../types/launches.type.js";
+import { getRemainingSeats } from "../bookings/bookings.service.js";
 import * as rocketsRepository from "../rockets/rockets.repository.js";
 import { logInfo } from "../utils/logger.js";
 import * as repository from "./launches.repository.js";
@@ -20,6 +21,16 @@ function checkRocketRules(rocketId: string, seatsOffered: number): string[] {
     return [`seatsOffered must not exceed the rocket capacity of ${rocket.capacity}`];
   }
   return [];
+}
+
+/**
+ * Enriches a launch with its derived, read-only `seatsAvailable` (seats offered
+ * minus seats already booked), reusing the single availability derivation. The
+ * value is clamped at 0 so it can never go negative. Used only on launch reads.
+ */
+export function withAvailability(launch: Launch): LaunchView {
+  const seatsAvailable = Math.max(0, getRemainingSeats(launch));
+  return { ...launch, seatsAvailable };
 }
 
 export function createLaunch(dto: CreateLaunchDto): CreateLaunchResult {

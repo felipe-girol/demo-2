@@ -2,6 +2,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 const LAUNCHES_URL = "http://localhost:3000/api/launches";
 const ROCKETS_URL = "http://localhost:3000/api/rockets";
+const CUSTOMERS_URL = "http://localhost:3000/api/customers";
+const BOOKINGS_URL = "http://localhost:3000/api/bookings";
 
 /** Returns an ISO date string a year in the future. */
 function futureDate(): string {
@@ -204,6 +206,63 @@ test.describe("Launches API - Retrieval", () => {
     expect(response.status()).toBe(404);
     const body = await response.json();
     expect(typeof body.error).toBe("string");
+  });
+});
+
+test.describe("Launches API - Derived seatsAvailable (FR12)", () => {
+  // AC: GET responses include a derived read-only seatsAvailable equal to
+  // seatsOffered when there are no bookings.
+  test("GET list and detail expose seatsAvailable equal to seatsOffered with no bookings", async ({
+    request,
+  }) => {
+    const { created } = await createLaunch(request);
+
+    const listResponse = await request.get(LAUNCHES_URL);
+    const list = await listResponse.json();
+    const fromList = list.find((l: { id: string }) => l.id === created.id);
+    expect(fromList.seatsAvailable).toBe(created.seatsOffered);
+
+    const detailResponse = await request.get(`${LAUNCHES_URL}/${created.id}`);
+    const detail = await detailResponse.json();
+    expect(detail.seatsAvailable).toBe(created.seatsOffered);
+  });
+
+  // AC: seatsAvailable drops by the booked seat count after a booking.
+  test("seatsAvailable decreases after a booking", async ({ request }) => {
+    const { created } = await createLaunch(request); // seatsOffered: 4
+
+    const customerResponse = await request.post(CUSTOMERS_URL, {
+      data: {
+        email: `passenger-${Date.now()}-${Math.random().toString(36).slice(2)}@astro.test`,
+        name: "Passenger",
+        phone: "555-0100",
+      },
+    });
+    expect(customerResponse.status()).toBe(201);
+    const customer = await customerResponse.json();
+
+    const bookingResponse = await request.post(BOOKINGS_URL, {
+      data: { launchId: created.id, customerId: customer.id, seats: 3 },
+    });
+    expect(bookingResponse.status()).toBe(201);
+
+    const detailResponse = await request.get(`${LAUNCHES_URL}/${created.id}`);
+    const detail = await detailResponse.json();
+    expect(detail.seatsAvailable).toBe(created.seatsOffered - 3);
+  });
+
+  // The derived field is read-only: it is not stored from create/update payloads.
+  test("seatsAvailable is not honored from create or update payloads", async ({ request }) => {
+    const rocket = await createRocket(request);
+    const createResponse = await request.post(LAUNCHES_URL, {
+      data: buildLaunch(rocket.id, { seatsOffered: 4, seatsAvailable: 999 }),
+    });
+    expect(createResponse.status()).toBe(201);
+    const created = await createResponse.json();
+
+    const detailResponse = await request.get(`${LAUNCHES_URL}/${created.id}`);
+    const detail = await detailResponse.json();
+    expect(detail.seatsAvailable).toBe(4); // derived, not the injected 999
   });
 });
 

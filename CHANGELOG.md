@@ -1,5 +1,68 @@
 # Changelog
 
+## [1.9.0] - 2026-06-30
+
+### Added
+- Launch catalog and availability browsing (FR12): customer-facing, read-only catalog listing the launch program from `/api/launches`, plus a launch detail view, building on the app shell (FR9) and the derived seat availability (FR4/FR7)
+- Backend: launch read responses (`GET /api/launches` and `GET /api/launches/:id`) now expose a derived, read-only `seatsAvailable` field (`seatsOffered` minus seats already booked) via a new `withAvailability(launch)` helper in `launches.service.ts` reusing `bookings.service.getRemainingSeats`; the field is computed on read, never stored, and never accepted on create/update
+- Backend `LaunchView = Launch & { seatsAvailable: number }` read type in `types/launches.type.ts`; create/update DTOs unchanged
+- `LaunchCatalogView` orchestrating the catalog through the shared `use-async` composable: loads launches and rockets together, rendering `LoadingState` while loading, `ErrorState` with retry on failure, `EmptyState` when no launches exist, else the catalog
+- `LaunchCatalogList` presentational component rendering each launch's mission, resolved rocket name, date, price per seat, and remaining `seatsAvailable`, with an accessible sold-out indicator WHEN `seatsAvailable === 0`; degrades gracefully when a `rocketId` has no matching rocket
+- `LaunchDetailView` loading `GET /api/launches/:id` + rockets via `use-async`, showing mission, rocket name, date, price per seat, minimum passengers, seats offered, and seats available, with a sold-out indicator and an `ErrorState` (retry/back) for a non-existent launch
+- `utils/launch-format.ts` pure helpers for date/price formatting and sold-out presentation
+- Typed `services/launches-api.ts` now returns `ApiResult<LaunchView[]>` from `listLaunches()` and adds `getLaunch(id): Promise<ApiResult<LaunchView>>`; frontend `types/launch.type.ts` mirrors the enhanced read shape (`LaunchView`)
+- Lazy-loaded `/customer/launches` and `/customer/launches/:id` routes linked from `CustomerView`
+- Vitest unit tests for `withAvailability` (no bookings, partial, and sold-out cases) and `launch-format`; Playwright coverage asserting `seatsAvailable` on the launch list/detail endpoints and a frontend E2E suite (`tests/frontend-launch-catalog.spec.ts`) covering catalog load, loading/empty/error+retry, sold-out marking, select → detail, detail fields, and detail error for a non-existent id
+
+## [1.8.0] - 2026-06-30
+
+### Added
+- Launch management UI (FR11): Agency screen to list, create, edit, and delete launches via `/api/launches`, building on the app shell (FR9), rocket management UI (FR10), and the launch CRUD API (FR4/FR5)
+- `LaunchesView` orchestrating the screen through the shared `use-async` composable: loads launches and rockets together, rendering `LoadingState` while loading, `ErrorState` with retry on failure, `EmptyState` when no launches exist, else the launch list
+- `LaunchList` presentational table of `mission`, resolved rocket name, `date`, `pricePerSeat`, `minPassengers`, and `seatsOffered` with per-row edit and delete actions; degrades gracefully when a `rocketId` has no matching rocket
+- Reusable `LaunchForm` serving both create (empty) and edit (pre-filled) with a rocket selector populated from `/api/rockets`, inline per-field validation feedback, and preserved input on submit failure
+- `ConfirmDialog` confirmation step before issuing `DELETE /api/launches/:id`
+- Typed `services/launches-api.ts` (`listLaunches`/`createLaunch`/`updateLaunch`/`deleteLaunch`) returning the discriminated `ApiResult<T>` through the single `/api` client
+- Frontend `types/launch.type.ts` mirroring backend DTOs (`Launch`, `CreateLaunchDto`, `UpdateLaunchDto`); the API stays the single source of truth
+- Pure `validation/launch-form.ts` (`validateLaunchForm`) mirroring backend rules (FR5): known `rocketId`, non-empty `mission`, future `date`, positive `pricePerSeat`, integer `seatsOffered <=` selected rocket capacity, integer `minPassengers <= seatsOffered`
+- Lazy-loaded `/agency/launches` route linked from `AgencyView`
+- Vitest unit tests for `validateLaunchForm`; Playwright E2E suite (`tests/frontend-launches.spec.ts`) covering every acceptance criterion
+
+## [1.7.0] - 2026-06-29
+
+### Added
+- Rocket management UI (FR10): Agency screen to list, create, edit, and delete rockets via `/api/rockets`, building on the app shell (FR9) and the rocket CRUD API (FR1/FR2)
+- `RocketsView` orchestrating the screen through the shared `use-async` composable: `LoadingState` while loading, `ErrorState` with retry on failure, `EmptyState` when no rockets exist, else the rocket list
+- `RocketList` presentational table of `name`, `range`, and `capacity` with per-row edit and delete actions
+- Reusable `RocketForm` serving both create (empty) and edit (pre-filled) with inline per-field validation feedback and preserved input on submit failure
+- `ConfirmDialog` confirmation step before issuing `DELETE /api/rockets/:id`
+- Typed `services/rockets-api.ts` (`listRockets`/`createRocket`/`updateRocket`/`deleteRocket`) returning the discriminated `ApiResult<T>` through the single `/api` client
+- Frontend `types/rocket.type.ts` mirroring backend DTOs (`Rocket`, `CreateRocketDto`, `UpdateRocketDto`, `ROCKET_RANGES`, capacity bounds); the API stays the single source of truth
+- Pure `validation/rocket-form.ts` (`validateRocketForm`) mirroring backend rules (non-empty `name`, `range` in the allowed set, integer `capacity` in `[1,10]`) for fast inline feedback
+- Lazy-loaded `/agency/rockets` route linked from `AgencyView`
+- Vitest unit tests for `rockets-api`, the API-client error parsing, and `validateRocketForm`; Playwright E2E suite (`tests/frontend-rockets.spec.ts`) covering every acceptance criterion
+
+### Changed
+- API client `request<T>()` now parses non-2xx JSON bodies (`errors: string[]` / `message`) into `ApiError.message` for meaningful error feedback, backward compatible with existing callers
+- `AgencyView` now hosts/links the rocket management screen instead of acting as a placeholder
+
+## [1.6.0] - 2026-06-28
+
+### Added
+- Frontend application shell (FR9): Vue 3 + Vite SPA foundation replacing the default `HelloWorld` scaffold
+- Client-side routing with `vue-router` (HTML5 history) — `/` (Home), `/agency`, `/customer`, and a catch-all not-found route, all rendered inside a shared `AppLayout`
+- Shared layout with top-level navigation (`AppNav`) between the agency and customer areas; navigation routes client-side without a full page reload
+- Service `HealthIndicator` that calls `GET /api/health` on mount and shows reachable/unreachable, with an `AbortController` timeout guaranteeing the unreachable state on a hung backend
+- Single typed API client (`services/api-client.ts`) on the `/api` base path exposing a generic `request<T>()` returning a discriminated `ApiResult<T>` and a typed `getHealth()`
+- Reusable async composable (`composables/use-async.ts`) with `loading`/`error`/`data` + `retry()`, and presentational `LoadingState`, `EmptyState`, and `ErrorState` (retry affordance) components
+- Frontend types `ApiResult<T>`/`ApiError` and `HealthStatus` mirroring backend DTOs (API remains the single source of truth)
+- Vite dev-server proxy forwarding `/api` → `http://localhost:3000` and `VITE_API_BASE_URL` env default (`/api`)
+- Vitest setup for the frontend with unit tests for the API client and async composable
+- Playwright shell E2E suite (`tests/frontend-shell.spec.ts`) covering every acceptance criterion (layout/nav, client-side routing, health reachable/unreachable, `/api` base, loading/empty states, failure + retry recovery, not-found)
+
+### Removed
+- Default Vite scaffold artifacts: `components/HelloWorld.vue`, `assets/vue.svg`, `assets/vite.svg`, and unused `assets/hero.png` / `public/icons.svg`
+
 ## [1.5.0] - 2026-06-27
 
 ### Added
